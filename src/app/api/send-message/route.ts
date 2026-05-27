@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import Pusher from "pusher";
+import Pusher from "pusher-js";
 
 // REPLACE WITH YOUR ACTUAL PUSHER CREDENTIALS
 const pusher = new Pusher({
