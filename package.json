@@ -12,11 +12,13 @@
 		"publish": true
 	},
 	"dependencies": {
+		"chess.js": "^1.0.0-beta.6",
+		"pusher-js": "^8.3.0",
+		"react-chessboard": "^4.7.2",
 		"@opennextjs/cloudflare": "1.14.0",
 		"next": "16.0.7",
 		"react": "19.2.1",
-		"react-dom": "19.2.1",
-		"pusher-js": "^8.3.0"
+		"react-dom": "19.2.1"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "3",
