@@ -24,6 +24,10 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
+// Pusher configuration
+const PUSHER_KEY = "bc4bbe143420c20c0e9d";
+const PUSHER_CLUSTER = "ap1";
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -32,33 +36,67 @@ export default function Home() {
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef<string>(generateId());
+  const pusherRef = useRef<Pusher | null>(null);
+  const channelRef = useRef<any>(null);
 
   // Initialize Pusher with your credentials
   useEffect(() => {
     if (!isJoined) return;
 
+    console.log("Initializing Pusher connection...");
+    
+    // Enable Pusher logging for debugging
+    Pusher.logToConsole = true;
+    
     const pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
+      forceTLS: true,
     });
-
+    
+    pusherRef.current = pusher;
+    
     const channel = pusher.subscribe("private-chat-channel");
+    channelRef.current = channel;
+    
+    channel.bind("pusher:subscription_succeeded", () => {
+      console.log("Successfully subscribed to private-chat-channel");
+    });
+    
+    channel.bind("pusher:subscription_error", (error: any) => {
+      console.error("Subscription error:", error);
+    });
     
     channel.bind("new-message", (data: Message) => {
-      console.log("New message received:", data);
-      setMessages((prev) => [...prev, data]);
+      console.log("New message received via Pusher:", data);
+      setMessages((prev) => {
+        // Check if message already exists to avoid duplicates
+        if (prev.some(msg => msg.id === data.id)) {
+          return prev;
+        }
+        return [...prev, data];
+      });
     });
 
     channel.bind("message-reaction", (data: { messageId: string; reaction: Reaction }) => {
-      console.log("Reaction received:", data);
+      console.log("Reaction received via Pusher:", data);
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === data.messageId
-            ? {
+        prev.map((msg) => {
+          if (msg.id === data.messageId) {
+            // Check if this user already added this reaction type
+            const existingReaction = msg.reactions?.find(
+              (r) => r.userId === data.reaction.userId && r.type === data.reaction.type
+            );
+            
+            // Only add if not already present
+            if (!existingReaction) {
+              return {
                 ...msg,
                 reactions: [...(msg.reactions || []), data.reaction],
-              }
-            : msg
-        )
+              };
+            }
+          }
+          return msg;
+        })
       );
     });
 
@@ -66,16 +104,22 @@ export default function Home() {
     const savedMessages = localStorage.getItem("chat-messages");
     if (savedMessages) {
       try {
-        setMessages(JSON.parse(savedMessages));
+        const parsed = JSON.parse(savedMessages);
+        setMessages(parsed);
+        console.log("Loaded messages from localStorage:", parsed.length);
       } catch (e) {
         console.error("Error loading messages:", e);
       }
     }
 
     return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
-      pusher.disconnect();
+      if (channelRef.current) {
+        channelRef.current.unbind_all();
+        channelRef.current.unsubscribe();
+      }
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+      }
     };
   }, [isJoined]);
 
@@ -104,6 +148,8 @@ export default function Home() {
       reactions: [],
     };
 
+    console.log("Sending message:", newMessage);
+
     try {
       const response = await fetch("/api/send-message", {
         method: "POST",
@@ -115,6 +161,7 @@ export default function Home() {
 
       if (response.ok) {
         setInputMessage("");
+        console.log("Message sent successfully");
       } else {
         const error = await response.json();
         console.error("Failed to send message:", error);
@@ -130,6 +177,20 @@ export default function Home() {
       userId: userIdRef.current,
       username: username,
     };
+
+    console.log("Adding reaction:", { messageId, reaction });
+
+    // Check if user already added this reaction type
+    const targetMessage = messages.find(msg => msg.id === messageId);
+    const alreadyReacted = targetMessage?.reactions?.some(
+      (r) => r.userId === userIdRef.current && r.type === reactionType
+    );
+
+    if (alreadyReacted) {
+      console.log("User already reacted with this emoji");
+      setActiveReactionMenu(null);
+      return;
+    }
 
     // Optimistically update UI
     setMessages((prev) =>
@@ -168,6 +229,8 @@ export default function Home() {
         );
         const error = await response.json();
         console.error("Failed to add reaction:", error);
+      } else {
+        console.log("Reaction added successfully");
       }
     } catch (error) {
       console.error("Error adding reaction:", error);
@@ -226,10 +289,6 @@ export default function Home() {
       minute: "2-digit",
     });
   };
-
-  // Add these constants at the top of your component or in a separate config file
-  const PUSHER_KEY = "bc4bbe143420c20c0e9d";
-  const PUSHER_CLUSTER = "ap1";
 
   if (!isJoined) {
     return (
@@ -348,6 +407,13 @@ export default function Home() {
                                   ? "bg-blue-100 text-blue-700"
                                   : "bg-gray-200 text-gray-700"
                               }`}
+                              style={{
+                                backgroundColor: hasUserReacted(message.reactions, type)
+                                  ? message.userId === userIdRef.current
+                                    ? "#dbeafe"
+                                    : "#dbeafe"
+                                  : "#e5e7eb"
+                              }}
                             >
                               <span>{getReactionEmoji(type)}</span>
                               <span>{count}</span>
