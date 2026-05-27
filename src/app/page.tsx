@@ -12,7 +12,7 @@ interface Message {
   userId: string;
 }
 
-// Simple ID generator - no external dependencies
+// Simple ID generator
 const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
@@ -29,14 +29,16 @@ export default function Home() {
   useEffect(() => {
     if (!isJoined) return;
 
-    // REPLACE WITH YOUR ACTUAL PUSHER CREDENTIALS
+    // Use your actual Pusher credentials
     const pusher = new Pusher("bc4bbe143420c20c0e9d", {
       cluster: "ap1",
+      authEndpoint: "/api/pusher-auth", // Your auth endpoint
     });
 
-    const channel = pusher.subscribe("chat-channel");
+    const channel = pusher.subscribe("private-chat-channel");
     
     channel.bind("new-message", (data: Message) => {
+      console.log("New message received:", data);
       setMessages((prev) => [...prev, data]);
     });
 
@@ -93,7 +95,8 @@ export default function Home() {
       if (response.ok) {
         setInputMessage("");
       } else {
-        console.error("Failed to send message");
+        const error = await response.json();
+        console.error("Failed to send message:", error);
       }
     } catch (error) {
       console.error("Error sending message:", error);
