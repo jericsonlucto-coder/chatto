@@ -4,12 +4,19 @@ import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
 
+interface Reaction {
+  type: string;
+  userId: string;
+  username: string;
+}
+
 interface Message {
   id: string;
   text: string;
   username: string;
   timestamp: number;
   userId: string;
+  reactions?: Reaction[];
 }
 
 // Simple ID generator
@@ -22,6 +29,7 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState("");
   const [username, setUsername] = useState("");
   const [isJoined, setIsJoined] = useState(false);
+  const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef<string>(generateId());
 
@@ -40,6 +48,20 @@ export default function Home() {
     channel.bind("new-message", (data: Message) => {
       console.log("New message received:", data);
       setMessages((prev) => [...prev, data]);
+    });
+
+    channel.bind("message-reaction", (data: { messageId: string; reaction: Reaction }) => {
+      console.log("Reaction received:", data);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.messageId
+            ? {
+                ...msg,
+                reactions: [...(msg.reactions || []), data.reaction],
+              }
+            : msg
+        )
+      );
     });
 
     // Load existing messages from localStorage
@@ -81,6 +103,7 @@ export default function Home() {
       username: username,
       timestamp: Date.now(),
       userId: userIdRef.current,
+      reactions: [],
     };
 
     try {
@@ -101,6 +124,95 @@ export default function Home() {
     } catch (error) {
       console.error("Error sending message:", error);
     }
+  };
+
+  const addReaction = async (messageId: string, reactionType: string) => {
+    const reaction: Reaction = {
+      type: reactionType,
+      userId: userIdRef.current,
+      username: username,
+    };
+
+    // Optimistically update UI
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              reactions: [...(msg.reactions || []), reaction],
+            }
+          : msg
+      )
+    );
+
+    try {
+      const response = await fetch("/api/add-reaction", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messageId, reaction }),
+      });
+
+      if (!response.ok) {
+        // Revert on error
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? {
+                  ...msg,
+                  reactions: msg.reactions?.filter(
+                    (r) => !(r.userId === userIdRef.current && r.type === reactionType)
+                  ),
+                }
+              : msg
+          )
+        );
+        const error = await response.json();
+        console.error("Failed to add reaction:", error);
+      }
+    } catch (error) {
+      console.error("Error adding reaction:", error);
+      // Revert on error
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                reactions: msg.reactions?.filter(
+                  (r) => !(r.userId === userIdRef.current && r.type === reactionType)
+                ),
+              }
+            : msg
+        )
+      );
+    }
+
+    setActiveReactionMenu(null);
+  };
+
+  const getReactionEmoji = (type: string) => {
+    switch (type) {
+      case "heart":
+        return "❤️";
+      case "haha":
+        return "😂";
+      default:
+        return type;
+    }
+  };
+
+  const getReactionCounts = (reactions: Reaction[] | undefined) => {
+    if (!reactions) return {};
+    const counts: { [key: string]: number } = {};
+    reactions.forEach((reaction) => {
+      counts[reaction.type] = (counts[reaction.type] || 0) + 1;
+    });
+    return counts;
+  };
+
+  const hasUserReacted = (reactions: Reaction[] | undefined, reactionType: string) => {
+    return reactions?.some((r) => r.userId === userIdRef.current && r.type === reactionType);
   };
 
   const joinChat = (e: React.FormEvent) => {
@@ -204,22 +316,79 @@ export default function Home() {
                     : "justify-start"
                 }`}
               >
-                <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    message.userId === userIdRef.current
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm">
-                      {message.username}
-                    </span>
-                    <span className="text-xs opacity-75">
-                      {formatTime(message.timestamp)}
-                    </span>
+                <div className="relative group max-w-[70%]">
+                  <div
+                    className={`rounded-lg p-3 ${
+                      message.userId === userIdRef.current
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm">
+                        {message.username}
+                      </span>
+                      <span className="text-xs opacity-75">
+                        {formatTime(message.timestamp)}
+                      </span>
+                    </div>
+                    <p className="break-words">{message.text}</p>
+                    
+                    {/* Reactions Display */}
+                    {message.reactions && message.reactions.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {Object.entries(getReactionCounts(message.reactions)).map(
+                          ([type, count]) => (
+                            <div
+                              key={type}
+                              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                                hasUserReacted(message.reactions, type)
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-gray-200 text-gray-700"
+                              }`}
+                            >
+                              <span>{getReactionEmoji(type)}</span>
+                              <span>{count}</span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <p className="break-words">{message.text}</p>
+                  
+                  {/* Reaction Button */}
+                  {message.userId !== userIdRef.current && (
+                    <button
+                      onClick={() =>
+                        setActiveReactionMenu(
+                          activeReactionMenu === message.id ? null : message.id
+                        )
+                      }
+                      className="absolute -right-2 -top-2 bg-white rounded-full shadow-md p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="text-sm">😊</span>
+                    </button>
+                  )}
+                  
+                  {/* Reaction Menu */}
+                  {activeReactionMenu === message.id && (
+                    <div className="absolute -top-10 left-0 bg-white rounded-lg shadow-lg border p-1 flex gap-1 z-10">
+                      <button
+                        onClick={() => addReaction(message.id, "heart")}
+                        className="hover:bg-gray-100 p-2 rounded transition-colors text-xl"
+                        title="Heart"
+                      >
+                        ❤️
+                      </button>
+                      <button
+                        onClick={() => addReaction(message.id, "haha")}
+                        className="hover:bg-gray-100 p-2 rounded transition-colors text-xl"
+                        title="Haha"
+                      >
+                        😂
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
