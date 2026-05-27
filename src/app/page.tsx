@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import { v4 as uuidv4 } from "uuid";
 
 interface Message {
   id: string;
@@ -13,21 +12,26 @@ interface Message {
   userId: string;
 }
 
+// Simple ID generator
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [username, setUsername] = useState("");
   const [isJoined, setIsJoined] = useState(false);
-  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const userIdRef = useRef<string>(uuidv4());
+  const userIdRef = useRef<string>(generateId());
 
-  // Initialize Pusher with hardcoded values (replace with your actual Pusher credentials)
+  // Initialize Pusher with your credentials
   useEffect(() => {
     if (!isJoined) return;
 
-    const pusher = new Pusher("your_pusher_key_here", {
-      cluster: "your_cluster_here",
+    // REPLACE WITH YOUR ACTUAL PUSHER CREDENTIALS
+    const pusher = new Pusher("YOUR_PUSHER_KEY", {
+      cluster: "YOUR_CLUSTER",
     });
 
     const channel = pusher.subscribe("chat-channel");
@@ -36,12 +40,14 @@ export default function Home() {
       setMessages((prev) => [...prev, data]);
     });
 
-    setPusherClient(pusher);
-
     // Load existing messages from localStorage
     const savedMessages = localStorage.getItem("chat-messages");
     if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (e) {
+        console.error("Error loading messages:", e);
+      }
     }
 
     return () => {
@@ -68,7 +74,7 @@ export default function Home() {
     if (!inputMessage.trim() || !username) return;
 
     const newMessage: Message = {
-      id: uuidv4(),
+      id: generateId(),
       text: inputMessage,
       username: username,
       timestamp: Date.now(),
