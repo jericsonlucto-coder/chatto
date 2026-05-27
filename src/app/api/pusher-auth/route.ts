@@ -35,17 +35,6 @@ export async function POST(request: Request) {
       auth: `${PUSHER_KEY}:${signature}`,
     };
     
-    // Add channel data if needed for presence channels
-    if (channel_name.startsWith("presence-")) {
-      // You can add user data here
-      authData.channel_data = JSON.stringify({
-        user_id: socket_id,
-        user_info: {
-          name: "User Name" // You can pass this from the client
-        }
-      });
-    }
-    
     return NextResponse.json(authData);
   } catch (error) {
     console.error("Auth error:", error);
