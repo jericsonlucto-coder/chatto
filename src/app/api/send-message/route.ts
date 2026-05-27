@@ -1,82 +1,50 @@
 import { NextResponse } from "next/server";
 
-// For Cloudflare Workers, we'll use fetch API directly to Pusher
-const PUSHER_APP_ID = "2159204";
-const PUSHER_KEY = "bc4bbe143420c20c0e9d";
-const PUSHER_SECRET = "bbd18207d17c2f39529e";
-const PUSHER_CLUSTER = "ap1";
-
 export async function POST(request: Request) {
   try {
+    console.log("API route hit");
     const message = await request.json();
-
-    // Construct the Pusher trigger URL
-    const url = `https://api-${PUSHER_CLUSTER}.pusher.com/apps/${PUSHER_APP_ID}/events`;
+    console.log("Message:", message);
     
-    // Create auth signature
-    const authKey = PUSHER_KEY;
-    const authSecret = PUSHER_SECRET;
-    
-    const body = JSON.stringify({
-      name: "new-message",
-      channel: "chat-channel",
-      data: JSON.stringify(message),
-    });
-    
-    const timestamp = Math.floor(Date.now() / 1000);
-    const stringToSign = `POST\n/apps/${PUSHER_APP_ID}/events\nauth_key=${authKey}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${await getMD5(body)}`;
-    
-    // Simple crypto for Cloudflare
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(authSecret);
-    const messageData = encoder.encode(stringToSign);
-    
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    
-    const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
-    const authSignature = Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
-    
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...JSON.parse(body),
-        auth_key: authKey,
-        auth_timestamp: timestamp,
-        auth_version: "1.0",
-        auth_signature: authSignature,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Pusher trigger failed: ${response.statusText}`);
+    // Try to dynamically import Pusher only when needed
+    let Pusher;
+    try {
+      Pusher = (await import('pusher')).default;
+      console.log("Pusher imported successfully");
+    } catch (importError) {
+      console.error("Failed to import Pusher:", importError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Pusher library not available",
+        details: importError.message 
+      }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true });
+    
+    // Replace with your actual Pusher credentials
+    const pusher = new Pusher({
+      appId: "2159204",    // Replace this
+      key: "bc4bbe143420c20c0e9d",          // Replace this
+      secret: "bbd18207d17c2f39529e",    // Replace this
+      cluster: "ap1",  // Replace this
+      useTLS: true,
+    });
+    
+    console.log("Pusher instance created, attempting to trigger...");
+    
+    const result = await pusher.trigger("chat-channel", "new-message", message);
+    console.log("Pusher trigger result:", result);
+    
+    return NextResponse.json({ success: true, result });
+    
   } catch (error) {
-    console.error("Error sending message:", error);
+    console.error("Error in API route:", error);
     return NextResponse.json(
-      { error: "Failed to send message" },
+      { 
+        success: false,
+        error: error.message,
+        stack: error.stack 
+      },
       { status: 500 }
     );
   }
-}
-
-// Helper function to calculate MD5
-async function getMD5(data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(data);
-  const hashBuffer = await crypto.subtle.digest("MD5", dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
