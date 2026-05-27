@@ -1,88 +1,243 @@
+"use client";
+
 import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import Pusher from "pusher-js";
+import { v4 as uuidv4 } from "uuid";
+
+interface Message {
+  id: string;
+  text: string;
+  username: string;
+  timestamp: number;
+  userId: string;
+}
 
 export default function Home() {
-	return (
-		<div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-			<main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-				<Image
-					className="dark:invert"
-					src="/next.svg"
-					alt="Next.js logo"
-					width={180}
-					height={38}
-					priority
-				/>
-				<ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-					<li className="mb-2 tracking-[-.01em]">
-						Get started by editing{" "}
-						<code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-							src/app/page.tsx
-						</code>
-						.
-					</li>
-					<li className="tracking-[-.01em]">
-						Save and see your changes instantly.
-					</li>
-				</ol>
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [username, setUsername] = useState("");
+  const [isJoined, setIsJoined] = useState(false);
+  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const userIdRef = useRef<string>(uuidv4());
 
-				<div className="flex gap-4 items-center flex-col sm:flex-row">
-					<a
-						className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-						href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						Read our docs
-					</a>
-				</div>
-			</main>
-			<footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-				<a
-					className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-					href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<Image
-						aria-hidden
-						src="/file.svg"
-						alt="File icon"
-						width={16}
-						height={16}
-					/>
-					Learn
-				</a>
-				<a
-					className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-					href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<Image
-						aria-hidden
-						src="/window.svg"
-						alt="Window icon"
-						width={16}
-						height={16}
-					/>
-					Examples
-				</a>
-				<a
-					className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-					href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<Image
-						aria-hidden
-						src="/globe.svg"
-						alt="Globe icon"
-						width={16}
-						height={16}
-					/>
-					Go to nextjs.org →
-				</a>
-			</footer>
-		</div>
-	);
+  // Initialize Pusher with hardcoded values (replace with your actual Pusher credentials)
+  useEffect(() => {
+    if (!isJoined) return;
+
+    const pusher = new Pusher("your_pusher_key_here", {
+      cluster: "your_cluster_here",
+    });
+
+    const channel = pusher.subscribe("chat-channel");
+    
+    channel.bind("new-message", (data: Message) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    setPusherClient(pusher);
+
+    // Load existing messages from localStorage
+    const savedMessages = localStorage.getItem("chat-messages");
+    if (savedMessages) {
+      setMessages(JSON.parse(savedMessages));
+    }
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+      pusher.disconnect();
+    };
+  }, [isJoined]);
+
+  // Save messages to localStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem("chat-messages", JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || !username) return;
+
+    const newMessage: Message = {
+      id: uuidv4(),
+      text: inputMessage,
+      username: username,
+      timestamp: Date.now(),
+      userId: userIdRef.current,
+    };
+
+    try {
+      const response = await fetch("/api/send-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newMessage),
+      });
+
+      if (response.ok) {
+        setInputMessage("");
+      } else {
+        console.error("Failed to send message");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const joinChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.trim()) {
+      setIsJoined(true);
+    }
+  };
+
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  if (!isJoined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+          <div className="text-center mb-8">
+            <Image
+              src="/next.svg"
+              alt="Logo"
+              width={120}
+              height={30}
+              className="mx-auto dark:invert"
+            />
+            <h2 className="text-2xl font-bold text-gray-800 mt-6">
+              Join the Chat
+            </h2>
+            <p className="text-gray-600 mt-2">
+              Enter your username to start chatting
+            </p>
+          </div>
+          <form onSubmit={joinChat} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your username"
+                required
+                maxLength={20}
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              Join Chat
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Image src="/next.svg" alt="Logo" width={100} height={25} />
+            <h1 className="text-xl font-semibold text-gray-800">Real-time Chat</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">Logged in as:</span>
+            <span className="font-medium text-gray-800">{username}</span>
+            <button
+              onClick={() => setIsJoined(false)}
+              className="text-sm text-red-500 hover:text-red-600"
+            >
+              Leave
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Container */}
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Messages Area */}
+          <div className="h-[500px] overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-500 mt-8">
+                No messages yet. Start the conversation!
+              </div>
+            )}
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.userId === userIdRef.current
+                    ? "justify-end"
+                    : "justify-start"
+                }`}
+              >
+                <div
+                  className={`max-w-[70%] rounded-lg p-3 ${
+                    message.userId === userIdRef.current
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-sm">
+                      {message.username}
+                    </span>
+                    <span className="text-xs opacity-75">
+                      {formatTime(message.timestamp)}
+                    </span>
+                  </div>
+                  <p className="break-words">{message.text}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <form onSubmit={sendMessage} className="border-t p-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                maxLength={500}
+              />
+              <button
+                type="submit"
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Send
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 }
