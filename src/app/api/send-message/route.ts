@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 // For Cloudflare Workers, we'll use fetch API directly to Pusher
-const PUSHER_APP_ID = "YOUR_APP_ID";
-const PUSHER_KEY = "YOUR_PUSHER_KEY";
-const PUSHER_SECRET = "YOUR_PUSHER_SECRET";
-const PUSHER_CLUSTER = "YOUR_CLUSTER";
+const PUSHER_APP_ID = "2159204";
+const PUSHER_KEY = "bc4bbe143420c20c0e9d";
+const PUSHER_SECRET = "bbd18207d17c2f39529e";
+const PUSHER_CLUSTER = "ap1";
 
 export async function POST(request: Request) {
   try {
