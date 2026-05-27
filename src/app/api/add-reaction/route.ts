@@ -48,6 +48,8 @@ export async function POST(request: Request) {
     const body: ReactionRequest = await request.json();
     const { messageId, reaction } = body;
     
+    console.log("Received reaction:", { messageId, reaction });
+    
     // Validate required fields
     if (!messageId || !reaction) {
       return NextResponse.json(
@@ -70,6 +72,8 @@ export async function POST(request: Request) {
     const stringToSign = `POST\n${path}\n${queryString}`;
     const signature = await getSignature(PUSHER_SECRET, stringToSign);
     
+    console.log("Triggering Pusher event...");
+    
     // Make request to Pusher HTTP API
     const response = await fetch(`https://api-${PUSHER_CLUSTER}.pusher.com${path}?${queryString}&auth_signature=${signature}`, {
       method: "POST",
@@ -83,12 +87,13 @@ export async function POST(request: Request) {
       const errorText = await response.text();
       console.error("Pusher API error:", errorText);
       return NextResponse.json(
-        { error: `Pusher error: ${response.status}` },
+        { error: `Pusher error: ${response.status}`, details: errorText },
         { status: response.status }
       );
     }
     
     const result = await response.json();
+    console.log("Pusher event triggered successfully:", result);
     return NextResponse.json({ success: true, result });
     
   } catch (error) {
