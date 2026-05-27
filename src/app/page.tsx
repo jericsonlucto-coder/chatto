@@ -37,10 +37,8 @@ export default function Home() {
   useEffect(() => {
     if (!isJoined) return;
 
-    // Use your actual Pusher credentials
-    const pusher = new Pusher("bc4bbe143420c20c0e9d", {
-      cluster: "ap1",
-      authEndpoint: "/api/pusher-auth", // Your auth endpoint
+    const pusher = new Pusher(PUSHER_KEY, {
+      cluster: PUSHER_CLUSTER,
     });
 
     const channel = pusher.subscribe("private-chat-channel");
@@ -229,6 +227,10 @@ export default function Home() {
     });
   };
 
+  // Add these constants at the top of your component or in a separate config file
+  const PUSHER_KEY = "bc4bbe143420c20c0e9d";
+  const PUSHER_CLUSTER = "ap1";
+
   if (!isJoined) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -356,7 +358,7 @@ export default function Home() {
                     )}
                   </div>
                   
-                  {/* Reaction Button */}
+                  {/* Reaction Button - Only show for other users' messages */}
                   {message.userId !== userIdRef.current && (
                     <button
                       onClick={() =>
