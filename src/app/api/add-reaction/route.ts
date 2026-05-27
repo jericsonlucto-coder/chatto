@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     // Create the payload for Pusher HTTP API
     const payload = {
       name: "message-reaction",
-      channel: "private-chat-channel",
+      channel: "public-chat-channel",
       data: JSON.stringify({ messageId, reaction })
     };
     
