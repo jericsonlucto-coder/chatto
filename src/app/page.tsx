@@ -30,8 +30,8 @@ export default function Home() {
     if (!isJoined) return;
 
     // REPLACE WITH YOUR ACTUAL PUSHER CREDENTIALS
-    const pusher = new Pusher("YOUR_PUSHER_KEY", {
-      cluster: "YOUR_CLUSTER",
+    const pusher = new Pusher("bc4bbe143420c20c0e9d", {
+      cluster: "ap1",
     });
 
     const channel = pusher.subscribe("chat-channel");
