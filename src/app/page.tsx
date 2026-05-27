@@ -55,11 +55,11 @@ export default function Home() {
     
     pusherRef.current = pusher;
     
-    const channel = pusher.subscribe("private-chat-channel");
+    const channel = pusher.subscribe("public-chat-channel");
     channelRef.current = channel;
     
     channel.bind("pusher:subscription_succeeded", () => {
-      console.log("Successfully subscribed to private-chat-channel");
+      console.log("Successfully subscribed to public-chat-channel");
     });
     
     channel.bind("pusher:subscription_error", (error: any) => {
