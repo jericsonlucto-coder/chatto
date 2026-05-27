@@ -10,6 +10,17 @@ interface Message {
   username: string;
   timestamp: number;
   userId: string;
+  reactions?: {
+    [key: string]: string[]; // emoji -> array of userIds
+  };
+}
+
+interface ReactionEvent {
+  messageId: string;
+  emoji: string;
+  userId: string;
+  username: string;
+  action: "add" | "remove";
 }
 
 // Simple ID generator
@@ -17,22 +28,37 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
+// Available emojis for reactions
+const AVAILABLE_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [username, setUsername] = useState("");
   const [isJoined, setIsJoined] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef<string>(generateId());
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close reaction picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target as Node)) {
+        setShowReactionPicker(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Initialize Pusher with your credentials
   useEffect(() => {
     if (!isJoined) return;
 
-    // Use your actual Pusher credentials
     const pusher = new Pusher("bc4bbe143420c20c0e9d", {
       cluster: "ap1",
-      authEndpoint: "/api/pusher-auth", // Your auth endpoint
+      authEndpoint: "/api/pusher-auth",
     });
 
     const channel = pusher.subscribe("private-chat-channel");
@@ -40,6 +66,38 @@ export default function Home() {
     channel.bind("new-message", (data: Message) => {
       console.log("New message received:", data);
       setMessages((prev) => [...prev, data]);
+    });
+
+    channel.bind("message-reaction", (data: ReactionEvent) => {
+      console.log("Reaction event received:", data);
+      setMessages((prev) => 
+        prev.map((msg) => {
+          if (msg.id === data.messageId) {
+            const updatedReactions = { ...(msg.reactions || {}) };
+            
+            if (data.action === "add") {
+              if (!updatedReactions[data.emoji]) {
+                updatedReactions[data.emoji] = [];
+              }
+              if (!updatedReactions[data.emoji].includes(data.userId)) {
+                updatedReactions[data.emoji].push(data.userId);
+              }
+            } else if (data.action === "remove") {
+              if (updatedReactions[data.emoji]) {
+                updatedReactions[data.emoji] = updatedReactions[data.emoji].filter(
+                  (id) => id !== data.userId
+                );
+                if (updatedReactions[data.emoji].length === 0) {
+                  delete updatedReactions[data.emoji];
+                }
+              }
+            }
+            
+            return { ...msg, reactions: updatedReactions };
+          }
+          return msg;
+        })
+      );
     });
 
     // Load existing messages from localStorage
@@ -81,6 +139,7 @@ export default function Home() {
       username: username,
       timestamp: Date.now(),
       userId: userIdRef.current,
+      reactions: {},
     };
 
     try {
@@ -103,6 +162,70 @@ export default function Home() {
     }
   };
 
+  const handleReaction = async (messageId: string, emoji: string) => {
+    const message = messages.find((m) => m.id === messageId);
+    if (!message) return;
+
+    const currentReactions = message.reactions || {};
+    const hasReacted = currentReactions[emoji]?.includes(userIdRef.current);
+    
+    const reactionEvent: ReactionEvent = {
+      messageId,
+      emoji,
+      userId: userIdRef.current,
+      username,
+      action: hasReacted ? "remove" : "add",
+    };
+
+    try {
+      const response = await fetch("/api/send-reaction", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(reactionEvent),
+      });
+
+      if (response.ok) {
+        // Optimistically update UI
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id === messageId) {
+              const updatedReactions = { ...(msg.reactions || {}) };
+              
+              if (reactionEvent.action === "add") {
+                if (!updatedReactions[emoji]) {
+                  updatedReactions[emoji] = [];
+                }
+                if (!updatedReactions[emoji].includes(userIdRef.current)) {
+                  updatedReactions[emoji].push(userIdRef.current);
+                }
+              } else {
+                if (updatedReactions[emoji]) {
+                  updatedReactions[emoji] = updatedReactions[emoji].filter(
+                    (id) => id !== userIdRef.current
+                  );
+                  if (updatedReactions[emoji].length === 0) {
+                    delete updatedReactions[emoji];
+                  }
+                }
+              }
+              
+              return { ...msg, reactions: updatedReactions };
+            }
+            return msg;
+          })
+        );
+        setShowReactionPicker(null);
+      } else {
+        const error = await response.json();
+        console.error("Failed to send reaction:", error);
+      }
+    } catch (error) {
+      console.error("Error sending reaction:", error);
+    }
+  };
+
   const joinChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
@@ -115,6 +238,16 @@ export default function Home() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const getReactionCount = (reactions: { [key: string]: string[] } | undefined, emoji: string) => {
+    if (!reactions || !reactions[emoji]) return 0;
+    return reactions[emoji].length;
+  };
+
+  const hasUserReacted = (reactions: { [key: string]: string[] } | undefined, emoji: string) => {
+    if (!reactions || !reactions[emoji]) return false;
+    return reactions[emoji].includes(userIdRef.current);
   };
 
   if (!isJoined) {
@@ -220,6 +353,68 @@ export default function Home() {
                     </span>
                   </div>
                   <p className="break-words">{message.text}</p>
+                  
+                  {/* Reactions Display */}
+                  {message.reactions && Object.keys(message.reactions).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {Object.entries(message.reactions).map(([emoji, users]) => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReaction(message.id, emoji)}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
+                            users.includes(userIdRef.current)
+                              ? "bg-blue-100 text-blue-700 border border-blue-300"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          <span>{emoji}</span>
+                          <span>{users.length}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Add Reaction Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowReactionPicker(showReactionPicker === message.id ? null : message.id)}
+                      className="absolute -top-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs"
+                      style={{ opacity: 0 }}
+                      onMouseEnter={(e) => {
+                        const btn = e.currentTarget;
+                        btn.style.opacity = "1";
+                      }}
+                      onMouseLeave={(e) => {
+                        if (showReactionPicker !== message.id) {
+                          btn.style.opacity = "0";
+                        }
+                      }}
+                    >
+                      😊 Add reaction
+                    </button>
+                    
+                    {/* Reaction Picker */}
+                    {showReactionPicker === message.id && (
+                      <div
+                        ref={reactionPickerRef}
+                        className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border p-2 flex gap-1 z-10"
+                      >
+                        {AVAILABLE_REACTIONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReaction(message.id, emoji)}
+                            className={`w-8 h-8 hover:bg-gray-100 rounded-full transition-colors text-lg flex items-center justify-center ${
+                              hasUserReacted(message.reactions, emoji)
+                                ? "bg-blue-50 ring-2 ring-blue-300"
+                                : ""
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -247,6 +442,12 @@ export default function Home() {
           </form>
         </div>
       </div>
+
+      <style jsx>{`
+        .group:hover button {
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 }
