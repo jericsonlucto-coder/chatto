@@ -3,8 +3,6 @@
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import Pusher from "pusher-js";
-import EmojiPicker from "emoji-picker-react";
-import { FaSmile } from "react-icons/fa";
 
 interface Message {
   id: string;
@@ -24,10 +22,8 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState("");
   const [username, setUsername] = useState("");
   const [isJoined, setIsJoined] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userIdRef = useRef<string>(generateId());
-  const emojiButtonRef = useRef<HTMLButtonElement>(null);
 
   // Initialize Pusher with your credentials
   useEffect(() => {
@@ -75,18 +71,6 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Close emoji picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (emojiButtonRef.current && !emojiButtonRef.current.contains(event.target as Node)) {
-        setShowEmojiPicker(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || !username) return;
@@ -131,11 +115,6 @@ export default function Home() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const onEmojiClick = (emojiObject: any) => {
-    setInputMessage((prevMessage) => prevMessage + emojiObject.emoji);
-    setShowEmojiPicker(false);
   };
 
   if (!isJoined) {
@@ -213,7 +192,7 @@ export default function Home() {
           <div className="h-[500px] overflow-y-auto p-4 space-y-3">
             {messages.length === 0 && (
               <div className="text-center text-gray-500 mt-8">
-                No messages yet. Start the conversation! 💬
+                No messages yet. Start the conversation!
               </div>
             )}
             {messages.map((message) => (
@@ -240,7 +219,7 @@ export default function Home() {
                       {formatTime(message.timestamp)}
                     </span>
                   </div>
-                  <p className="break-words text-base">{message.text}</p>
+                  <p className="break-words">{message.text}</p>
                 </div>
               </div>
             ))}
@@ -249,30 +228,15 @@ export default function Home() {
 
           {/* Input Area */}
           <form onSubmit={sendMessage} className="border-t p-4">
-            <div className="flex gap-2 relative">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Type a message... 😊"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                  maxLength={500}
-                />
-                <button
-                  type="button"
-                  ref={emojiButtonRef}
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <FaSmile size={20} />
-                </button>
-                {showEmojiPicker && (
-                  <div className="absolute bottom-full right-0 mb-2 z-50">
-                    <EmojiPicker onEmojiClick={onEmojiClick} />
-                  </div>
-                )}
-              </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                maxLength={500}
+              />
               <button
                 type="submit"
                 className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
