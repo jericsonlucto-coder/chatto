@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-// Your Pusher credentials
 const PUSHER_APP_ID = "2159204";
 const PUSHER_KEY = "bc4bbe143420c20c0e9d";
 const PUSHER_SECRET = "bbd18207d17c2f39529e";
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
   try {
     const reactionEvent = await request.json();
     
-    // Create the payload for Pusher HTTP API
     const payload = {
       name: "message-reaction",
       channel: "private-chat-channel",
@@ -50,7 +48,6 @@ export async function POST(request: Request) {
     const stringToSign = `POST\n${path}\n${queryString}`;
     const signature = await getSignature(PUSHER_SECRET, stringToSign);
     
-    // Make request to Pusher HTTP API
     const response = await fetch(`https://api-${PUSHER_CLUSTER}.pusher.com${path}?${queryString}&auth_signature=${signature}`, {
       method: "POST",
       headers: {
@@ -73,9 +70,8 @@ export async function POST(request: Request) {
     
   } catch (error) {
     console.error("Error sending reaction:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to send reaction", details: errorMessage },
+      { error: "Failed to send reaction" },
       { status: 500 }
     );
   }
