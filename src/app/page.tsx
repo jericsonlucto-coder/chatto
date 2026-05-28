@@ -252,7 +252,7 @@ function ReactionDisplay({
   const unique = getUniqueReactions(reactions);
   if (unique.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-0.5 mt-0.5">
+    <div className="flex flex-wrap gap-0.5 justify-end">
       {unique.map((reaction, idx) => {
         const isActive = sanitizeReactions(reactions || []).some(
           (r) => r.userId === userId && r.type === reaction.type
@@ -260,8 +260,8 @@ function ReactionDisplay({
         return (
           <div
             key={idx}
-            className={`inline-flex items-center gap-0.5 bg-white border rounded-full px-[2px] py-[1px] sm:px-1 sm:py-0.5 text-[8px] sm:text-xs shadow-sm ${
-              isActive ? "border-blue-500 bg-blue-50" : "border-gray-200"
+            className={`inline-flex items-center gap-0.5 bg-white border rounded-full px-[2px] py-[1px] sm:px-1 sm:py-0.5 text-[8px] sm:text-xs shadow-md ${
+              isActive ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"
             }`}
           >
             <span className="text-[10px] sm:text-sm">{reaction.type}</span>
@@ -290,8 +290,10 @@ function MessageBubble({
 }) {
   const isOwn = message.userId === currentUserId;
   const uniqueReactions = getUniqueReactions(message.reactions);
+  const hasReactions = uniqueReactions.length > 0;
+  
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 sm:mb-3`}>
+    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} ${hasReactions ? 'mb-6 sm:mb-7' : 'mb-2 sm:mb-3'}`}>
       <div
         className="relative max-w-[90%] sm:max-w-[75%] md:max-w-[65%]"
         onMouseEnter={onMouseEnter}
@@ -322,19 +324,23 @@ function MessageBubble({
             </span>
           </div>
           <p className="break-words text-[11px] sm:text-sm">{message.text}</p>
-          {/* Reactions Display - Inside the bubble, right after message */}
-          {uniqueReactions.length > 0 && (
-            <ReactionDisplay
-              reactions={message.reactions}
-              userId={currentUserId}
-            />
-          )}
           {isOwn && message.status && (
             <div className="mt-0.5 flex justify-end">
               <StatusIcon status={message.status} />
             </div>
           )}
         </div>
+        {/* Reactions Display - Positioned below bubble, only 1/4 overlaps */}
+        {hasReactions && (
+          <div className={`absolute -bottom-3 ${isOwn ? "right-0" : "left-0"} z-5`}>
+            <div className="translate-y-2">
+              <ReactionDisplay
+                reactions={message.reactions}
+                userId={currentUserId}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -934,7 +940,7 @@ export default function Home() {
             </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Hamburger Menu Button - Mobile */}
+            {/* Hamburger Menu Button - Mobile Only */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="lg:hidden p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -969,17 +975,17 @@ export default function Home() {
         <div className="w-full lg:max-w-[70%] h-full">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-xl overflow-hidden h-full flex flex-col">
             <div className="flex flex-row h-full">
-              {/* Online Users Sidebar - Hidden on mobile by default, shown when hamburger clicked */}
+              {/* Online Users Sidebar - Hidden on mobile by default */}
               <div
                 className={`
-                  fixed lg:relative lg:flex lg:w-64 w-64 bg-white border-r lg:border-r
-                  transform transition-transform duration-300 ease-in-out z-50
-                  h-full
+                  fixed lg:relative lg:block lg:w-64 w-64 bg-white border-r z-50
+                  transform transition-transform duration-300 ease-in-out
+                  h-full overflow-y-auto
                   ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
                   lg:translate-x-0
                 `}
               >
-                <div className="p-2 sm:p-3 border-b bg-gradient-to-r from-blue-500 to-indigo-600">
+                <div className="p-2 sm:p-3 border-b bg-gradient-to-r from-blue-500 to-indigo-600 sticky top-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <svg className="h-3 w-3 sm:h-4 sm:w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -999,7 +1005,7 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto h-[calc(100%-41px)] sm:h-[calc(100%-57px)]">
+                <div>
                   {onlineUsers.length === 0 ? (
                     <p className="text-center text-gray-500 py-8 text-[10px] sm:text-sm">No active users</p>
                   ) : (
