@@ -220,7 +220,7 @@ function ReactionPicker({
   onReact: (type: ReactionType) => void;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-lg border p-0.5 sm:p-1.5 flex gap-0 z-20">
+    <div className="bg-white rounded-lg shadow-lg border p-0.5 sm:p-1 flex gap-0 z-20">
       {REACTIONS.map((reaction) => {
         const isActive = sanitizeReactions(reactions || []).some(
           (r) => r.userId === userId && r.type === reaction
@@ -252,7 +252,7 @@ function ReactionDisplay({
   const unique = getUniqueReactions(reactions);
   if (unique.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-0.5 mt-0.5 sm:mt-1">
+    <div className="flex flex-wrap gap-0.5 mt-0.5">
       {unique.map((reaction, idx) => {
         const isActive = sanitizeReactions(reactions || []).some(
           (r) => r.userId === userId && r.type === reaction.type
@@ -291,7 +291,7 @@ function MessageBubble({
   const isOwn = message.userId === currentUserId;
   const uniqueReactions = getUniqueReactions(message.reactions);
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 sm:mb-4`}>
+    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 sm:mb-3`}>
       <div
         className="relative max-w-[90%] sm:max-w-[75%] md:max-w-[65%]"
         onMouseEnter={onMouseEnter}
@@ -322,21 +322,19 @@ function MessageBubble({
             </span>
           </div>
           <p className="break-words text-[11px] sm:text-sm">{message.text}</p>
-          {isOwn && message.status && (
-            <div className="mt-0.5 sm:mt-1 flex justify-end">
-              <StatusIcon status={message.status} />
-            </div>
-          )}
-        </div>
-        {/* Reactions Display - Below the bubble */}
-        {uniqueReactions.length > 0 && (
-          <div className="mt-0.5 sm:mt-1">
+          {/* Reactions Display - Inside the bubble, right after message */}
+          {uniqueReactions.length > 0 && (
             <ReactionDisplay
               reactions={message.reactions}
               userId={currentUserId}
             />
-          </div>
-        )}
+          )}
+          {isOwn && message.status && (
+            <div className="mt-0.5 flex justify-end">
+              <StatusIcon status={message.status} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -970,22 +968,15 @@ export default function Home() {
       <div className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
         <div className="w-full lg:max-w-[70%] h-full">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-xl overflow-hidden h-full flex flex-col">
-            <div className="flex flex-col lg:flex-row h-full">
-              {/* Mobile Sidebar Overlay */}
-              {isMobileMenuOpen && (
-                <div
-                  className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                />
-              )}
-              
-              {/* Online Users Sidebar */}
+            <div className="flex flex-row h-full">
+              {/* Online Users Sidebar - Hidden on mobile by default, shown when hamburger clicked */}
               <div
                 className={`
-                  fixed lg:relative lg:w-64 w-64 bg-white border-r lg:border-r
+                  fixed lg:relative lg:flex lg:w-64 w-64 bg-white border-r lg:border-r
                   transform transition-transform duration-300 ease-in-out z-50
-                  h-full lg:h-auto
-                  ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+                  h-full
+                  ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+                  lg:translate-x-0
                 `}
               >
                 <div className="p-2 sm:p-3 border-b bg-gradient-to-r from-blue-500 to-indigo-600">
@@ -1022,6 +1013,14 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {/* Overlay for mobile when sidebar is open */}
+              {isMobileMenuOpen && (
+                <div
+                  className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+              )}
 
               {/* Chat Area */}
               <div className="flex-1 flex flex-col h-full relative">
