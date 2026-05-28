@@ -259,7 +259,7 @@ function ReactionDisplay({
         return (
           <div
             key={idx}
-            className={`inline-flex items-center gap-0.5 bg-white border rounded-full px-1 py-0 sm:px-1.5 sm:py-0.5 text-[10px] sm:text-xs shadow-sm ${
+            className={`inline-flex items-center gap-0.5 bg-white border rounded-full px-[2px] py-[1px] sm:px-1 sm:py-0.5 text-[10px] sm:text-xs shadow-sm ${
               isActive ? "border-blue-500 bg-blue-50" : "border-gray-200"
             }`}
           >
