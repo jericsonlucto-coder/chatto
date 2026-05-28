@@ -4,13 +4,15 @@ import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Pusher from "pusher-js";
 
+type MessageStatus = "sending" | "sent" | "delivered" | "error";
+
 interface Message {
   id: string;
   text: string;
   username: string;
   timestamp: number;
   userId: string;
-  status?: "sending" | "sent" | "delivered" | "error";
+  status?: MessageStatus;
 }
 
 // Firebase message structure
@@ -95,11 +97,11 @@ export default function Home() {
     channel.bind("new-message", (data: Message) => {
       console.log("New message received via Pusher:", data);
       // Immediately add the message to the UI without reloading all messages
-      setMessages((prevMessages) => {
+      setMessages((prevMessages: Message[]) => {
         // Check if message already exists to avoid duplicates
         const exists = prevMessages.some(msg => msg.id === data.id);
         if (!exists) {
-          const newMessages = [...prevMessages, { ...data, status: "delivered" }];
+          const newMessages: Message[] = [...prevMessages, { ...data, status: "delivered" }];
           newMessages.sort((a, b) => a.timestamp - b.timestamp);
           return newMessages;
         }
@@ -134,10 +136,10 @@ export default function Home() {
     setInputMessage("");
     
     // Optimistically add message to UI with "sending" status
-    setMessages((prevMessages) => {
+    setMessages((prevMessages: Message[]) => {
       const exists = prevMessages.some(msg => msg.id === messageId);
       if (!exists) {
-        const newMessages = [...prevMessages, newMessage];
+        const newMessages: Message[] = [...prevMessages, newMessage];
         newMessages.sort((a, b) => a.timestamp - b.timestamp);
         return newMessages;
       }
@@ -146,9 +148,9 @@ export default function Home() {
 
     try {
       // Update status to "sent" after API call starts
-      setMessages((prevMessages) =>
+      setMessages((prevMessages: Message[]) =>
         prevMessages.map((msg) =>
-          msg.id === messageId ? { ...msg, status: "sent" } : msg
+          msg.id === messageId ? { ...msg, status: "sent" as MessageStatus } : msg
         )
       );
 
@@ -163,15 +165,15 @@ export default function Home() {
       if (response.ok) {
         console.log("Message sent successfully");
         // Update status to "delivered" after successful save
-        setMessages((prevMessages) =>
+        setMessages((prevMessages: Message[]) =>
           prevMessages.map((msg) =>
-            msg.id === messageId ? { ...msg, status: "delivered" } : msg
+            msg.id === messageId ? { ...msg, status: "delivered" as MessageStatus } : msg
           )
         );
         
         // Auto-remove status after 2 seconds (optional)
         setTimeout(() => {
-          setMessages((prevMessages) =>
+          setMessages((prevMessages: Message[]) =>
             prevMessages.map((msg) =>
               msg.id === messageId ? { ...msg, status: undefined } : msg
             )
@@ -181,15 +183,15 @@ export default function Home() {
         const error = await response.json();
         console.error("Failed to send message:", error);
         // Update status to "error"
-        setMessages((prevMessages) =>
+        setMessages((prevMessages: Message[]) =>
           prevMessages.map((msg) =>
-            msg.id === messageId ? { ...msg, status: "error" } : msg
+            msg.id === messageId ? { ...msg, status: "error" as MessageStatus } : msg
           )
         );
         
         // Auto-retry option could be added here
         setTimeout(() => {
-          setMessages((prevMessages) =>
+          setMessages((prevMessages: Message[]) =>
             prevMessages.map((msg) =>
               msg.id === messageId ? { ...msg, status: undefined } : msg
             )
@@ -199,14 +201,14 @@ export default function Home() {
     } catch (error) {
       console.error("Error sending message:", error);
       // Update status to "error"
-      setMessages((prevMessages) =>
+      setMessages((prevMessages: Message[]) =>
         prevMessages.map((msg) =>
-          msg.id === messageId ? { ...msg, status: "error" } : msg
+          msg.id === messageId ? { ...msg, status: "error" as MessageStatus } : msg
         )
       );
       
       setTimeout(() => {
-        setMessages((prevMessages) =>
+        setMessages((prevMessages: Message[]) =>
           prevMessages.map((msg) =>
             msg.id === messageId ? { ...msg, status: undefined } : msg
           )
@@ -230,7 +232,7 @@ export default function Home() {
     });
   };
 
-  const getStatusIcon = (status?: string) => {
+  const getStatusIcon = (status?: MessageStatus) => {
     switch (status) {
       case "sending":
         return (
