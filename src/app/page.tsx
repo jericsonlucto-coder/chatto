@@ -295,7 +295,7 @@ function MessageBubble({
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} ${hasReactions ? 'mb-6 sm:mb-7' : 'mb-2 sm:mb-3'}`}>
       <div
-        className="relative max-w-[90%] sm:max-w-[75%] md:max-w-[65%]"
+        className="relative max-w-[85%] sm:max-w-[70%] md:max-w-[60%] min-w-[40px]"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
@@ -309,28 +309,30 @@ function MessageBubble({
             />
           </div>
         )}
-        {/* Bubble */}
+        {/* Bubble with word wrapping and overflow handling */}
         <div
           className={`rounded-lg p-1.5 sm:p-2.5 ${
             isOwn ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-800"
-          }`}
+          } overflow-hidden`}
         >
           <div className="flex items-center gap-1 sm:gap-2 mb-0.5">
-            <span className="font-semibold text-[11px] sm:text-sm truncate max-w-[100px] sm:max-w-none">
+            <span className="font-semibold text-[11px] sm:text-sm truncate max-w-[120px] sm:max-w-[200px]">
               {message.username}
             </span>
-            <span className="text-[8px] sm:text-xs opacity-75">
+            <span className="text-[8px] sm:text-xs opacity-75 flex-shrink-0">
               {formatTime(message.timestamp)}
             </span>
           </div>
-          <p className="break-words text-[11px] sm:text-sm">{message.text}</p>
+          <p className="break-words whitespace-pre-wrap text-[11px] sm:text-sm overflow-hidden">
+            {message.text}
+          </p>
           {isOwn && message.status && (
             <div className="mt-0.5 flex justify-end">
               <StatusIcon status={message.status} />
             </div>
           )}
         </div>
-        {/* Reactions Display - Positioned below bubble, only 1/4 overlaps */}
+        {/* Reactions Display - Positioned below bubble */}
         {hasReactions && (
           <div className={`absolute -bottom-3 ${isOwn ? "right-0" : "left-0"} z-5`}>
             <div className="translate-y-2">
@@ -929,7 +931,7 @@ export default function Home() {
 
   // ── Chat Screen ───────────────────────────────────────────
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 overflow-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b flex-shrink-0">
         <div className="px-3 sm:px-4 py-2 sm:py-3 flex justify-between items-center w-full lg:max-w-[70%] lg:mx-auto">
@@ -971,16 +973,16 @@ export default function Home() {
       </div>
 
       {/* Chat Container */}
-      <div className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
-        <div className="w-full lg:max-w-[70%] h-full">
+      <div className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden min-h-0">
+        <div className="w-full lg:max-w-[70%] h-full min-h-0">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-xl overflow-hidden h-full flex flex-col">
-            <div className="flex flex-row h-full">
+            <div className="flex flex-row h-full min-h-0">
               {/* Online Users Sidebar - Hidden on mobile by default */}
               <div
                 className={`
                   fixed lg:relative lg:block lg:w-64 w-64 bg-white border-r z-50
                   transform transition-transform duration-300 ease-in-out
-                  h-full overflow-y-auto
+                  h-full overflow-y-auto flex-shrink-0
                   ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
                   lg:translate-x-0
                 `}
@@ -1029,10 +1031,10 @@ export default function Home() {
               )}
 
               {/* Chat Area */}
-              <div className="flex-1 flex flex-col h-full relative">
+              <div className="flex-1 flex flex-col h-full min-h-0 relative overflow-hidden">
                 {/* Load More Button */}
                 {showLoadMoreButton && hasMoreMessages && !isLoading && messages.length > 0 && (
-                  <div className="sticky top-0 z-10 p-1 sm:p-2 flex justify-center bg-white/95 backdrop-blur-sm border-b">
+                  <div className="sticky top-0 z-10 p-1 sm:p-2 flex justify-center bg-white/95 backdrop-blur-sm border-b flex-shrink-0">
                     <button
                       onClick={loadMoreMessages}
                       disabled={isLoadingMore}
@@ -1092,7 +1094,7 @@ export default function Home() {
                 <div 
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
-                  className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-2 sm:space-y-3"
+                  className="flex-1 overflow-y-auto p-2 sm:p-3 space-y-2 sm:space-y-3 min-h-0"
                 >
                   {isLoading && (
                     <p className="text-center text-gray-500 mt-8 text-[10px] sm:text-sm">
@@ -1120,7 +1122,7 @@ export default function Home() {
                 </div>
 
                 {/* Input Area */}
-                <div className="border-t p-1.5 sm:p-3 flex-shrink-0">
+                <div className="border-t p-1.5 sm:p-3 flex-shrink-0 bg-white">
                   <form onSubmit={sendMessage}>
                     <div className="flex gap-1 sm:gap-2">
                       <input
@@ -1130,12 +1132,12 @@ export default function Home() {
                         onFocus={updateUserActivity}
                         onClick={updateUserActivity}
                         placeholder="Type a message..."
-                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[10px] sm:text-sm"
+                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[10px] sm:text-sm min-w-0"
                         maxLength={500}
                       />
                       <button
                         type="submit"
-                        className="bg-blue-500 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-[10px] sm:text-sm"
+                        className="bg-blue-500 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-[10px] sm:text-sm flex-shrink-0"
                       >
                         Send
                       </button>
