@@ -581,10 +581,6 @@ function ChatScreen({
                     Send
                   </button>
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 px-1 flex items-center gap-1">
-                  <span>📷</span>
-                  <span>Click the camera icon or paste an image (Ctrl+V / Cmd+V) to share (max 2MB)</span>
-                </div>
               </form>
             </div>
           </div>
