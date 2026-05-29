@@ -351,7 +351,7 @@ function ChatScreen({
             </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">Chatto</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Real-time messaging</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Gawa ni Jirik</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
