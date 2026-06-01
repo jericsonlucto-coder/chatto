@@ -9,21 +9,18 @@ type MessageStatus = "sending" | "sent" | "delivered" | "error";
 type ReactionType = "👍" | "❤️" | "😂" | "😮" | "😢" | "🙏";
 type MessageType = "text" | "image";
 type Theme = "light" | "dark";
-
 interface Reaction {
   type: ReactionType;
   userId: string;
   username: string;
   timestamp: number;
 }
-
 interface Mention {
   userId: string;
   username: string;
   startIndex: number;
   endIndex: number;
 }
-
 interface Message {
   id: string;
   text: string;
@@ -38,14 +35,12 @@ interface Message {
   imageThumbnail?: string;
   mentions?: Mention[];
 }
-
 interface User {
   id: string;
   username: string;
   joinedAt: number;
   lastActive: number;
 }
-
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -62,21 +57,17 @@ const CONFIG = {
   MAX_IMAGE_SIZE: 2 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ["image/jpeg", "image/png", "image/gif", "image/webp"],
 };
-
 // ============================================================
 // UTILITIES
 // ============================================================
 const utils = {
   generateId: () => Date.now().toString(36) + Math.random().toString(36).substring(2, 9),
-  
   formatTime: (timestamp: number) => new Date(timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   }),
-
   sanitizeReactions: (reactions: Reaction[] | undefined): Reaction[] =>
     (reactions || []).filter((r) => r !== null && r !== undefined),
-
   getReactionCounts: (reactions?: Reaction[]): Record<string, number> => {
     if (!reactions) return {};
     return utils.sanitizeReactions(reactions).reduce((acc, r) => {
@@ -84,7 +75,6 @@ const utils = {
       return acc;
     }, {} as Record<string, number>);
   },
-
   getUniqueReactions: (reactions?: Reaction[]): Reaction[] => {
     if (!reactions) return [];
     const unique = new Map<ReactionType, Reaction>();
@@ -93,14 +83,12 @@ const utils = {
     });
     return Array.from(unique.values());
   },
-
   processImage: (file: File): Promise<{ full: string; thumbnail: string }> => {
     return new Promise((resolve, reject) => {
       const img = document.createElement('img');
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const thumbCanvas = document.createElement("canvas");
-        
         let width = img.width;
         let height = img.height;
         if (width > 800) {
@@ -111,7 +99,6 @@ const utils = {
         canvas.height = height;
         canvas.getContext("2d")?.drawImage(img, 0, 0, width, height);
         const full = canvas.toDataURL("image/jpeg", 0.7);
-        
         let thumbWidth = img.width;
         let thumbHeight = img.height;
         if (thumbWidth > 150) {
@@ -122,18 +109,15 @@ const utils = {
         thumbCanvas.height = thumbHeight;
         thumbCanvas.getContext("2d")?.drawImage(img, 0, 0, thumbWidth, thumbHeight);
         const thumbnail = thumbCanvas.toDataURL("image/jpeg", 0.5);
-        
         resolve({ full, thumbnail });
       };
       img.onerror = reject;
       img.src = URL.createObjectURL(file);
     });
   },
-
   parseMentions: (text: string, users: User[], currentUserId: string): { text: string; mentions: Mention[] } => {
     const mentions: Mention[] = [];
     let processedText = text;
-    
     // Check for @everyone
     if (text.includes('@everyone')) {
       mentions.push({
@@ -143,7 +127,6 @@ const utils = {
         endIndex: text.indexOf('@everyone') + 9,
       });
     }
-    
     // Check for @username mentions
     const mentionRegex = /@(\w+)/g;
     let match;
@@ -159,26 +142,21 @@ const utils = {
         });
       }
     }
-    
     return { text: processedText, mentions };
   },
-
   highlightMentions: (text: string, currentUserId: string, onlineUsers: User[]): React.ReactNode => {
     const parts = [];
     let lastIndex = 0;
     const mentionRegex = /@(\w+)/g;
     let match;
-    
     while ((match = mentionRegex.exec(text)) !== null) {
       if (match.index > lastIndex) {
         parts.push(text.substring(lastIndex, match.index));
       }
-      
       const mentionedUsername = match[1];
       const isCurrentUser = mentionedUsername.toLowerCase() === 'me';
       const isEveryone = mentionedUsername.toLowerCase() === 'everyone';
       const userExists = onlineUsers.some(u => u.username.toLowerCase() === mentionedUsername.toLowerCase());
-      
       parts.push(
         <span
           key={match.index}
@@ -195,7 +173,7 @@ const utils = {
             if (userExists && !isCurrentUser && !isEveryone) {
               const inputEl = document.querySelector('input[type="text"]') as HTMLInputElement;
               if (inputEl) {
-                inputEl.value = `@${mentionedUsername} `;
+                inputEl.value = `@${mentionedUsername}`;
                 inputEl.focus();
                 // Trigger input event to update suggestions
                 const event = new Event('input', { bubbles: true });
@@ -207,18 +185,14 @@ const utils = {
           @{mentionedUsername}
         </span>
       );
-      
       lastIndex = match.index + match[0].length;
     }
-    
     if (lastIndex < text.length) {
       parts.push(text.substring(lastIndex));
     }
-    
     return parts.length > 0 ? parts : text;
   },
 };
-
 // ============================================================
 // API SERVICE
 // ============================================================
@@ -232,7 +206,6 @@ const apiService = {
       return {};
     }
   },
-
   async getAllImages(): Promise<Record<string, any>> {
     try {
       const res = await fetch(`${CONFIG.FIREBASE_DB_URL}/images.json`);
@@ -242,7 +215,6 @@ const apiService = {
       return {};
     }
   },
-
   async fetchImage(imageId: string): Promise<{ full: string; thumbnail: string } | null> {
     try {
       const res = await fetch(`${CONFIG.FIREBASE_DB_URL}/images/${imageId}.json`);
@@ -256,56 +228,68 @@ const apiService = {
       return null;
     }
   },
-
   getUsers: () => fetch(`${CONFIG.FIREBASE_DB_URL}/users.json`),
-  
   putUser: (userId: string, data: object) =>
     fetch(`${CONFIG.FIREBASE_DB_URL}/users/${userId}.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
-    
   patchUser: (userId: string, data: object) =>
     fetch(`${CONFIG.FIREBASE_DB_URL}/users/${userId}.json`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
-    
   deleteUser: (userId: string) =>
     fetch(`${CONFIG.FIREBASE_DB_URL}/users/${userId}.json`, { method: "DELETE" }),
-    
   putReactions: (messageId: string, reactions: Reaction[]) =>
     fetch(`${CONFIG.FIREBASE_DB_URL}/messages/${messageId}/reactions.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(reactions),
     }),
-    
   sendMessage: (message: Message) =>
     fetch("/api/send-message", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(message),
     }),
-    
   sendReaction: (messageId: string, reaction: Reaction | null) =>
     fetch("/api/send-reaction", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messageId, reaction }),
     }),
+  // Add method to check if user exists
+  async checkUserExists(userId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${userId}.json`);
+      const data = await res.json();
+      return data !== null && data !== undefined;
+    } catch (err) {
+      console.error("Error checking user:", err);
+      return false;
+    }
+  },
+  // Add method to get user data
+  async getUser(userId: string): Promise<any | null> {
+    try {
+      const res = await fetch(`${CONFIG.FIREBASE_DB_URL}/users/${userId}.json`);
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Error getting user:", err);
+      return null;
+    }
+  }
 };
-
 // ============================================================
 // CUSTOM HOOKS
 // ============================================================
-
 // Theme Hook
 const useTheme = () => {
   const [theme, setTheme] = useState<Theme>("light");
-
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -313,17 +297,14 @@ const useTheme = () => {
     setTheme(initialTheme);
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
-
   const toggleTheme = useCallback(() => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   }, [theme]);
-
   return { theme, toggleTheme };
 };
-
 // Messages Hook
 const useMessages = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -334,16 +315,13 @@ const useMessages = () => {
   const [newMessageCount, setNewMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
   const loadAndCombineMessages = useCallback(async (limit?: number, beforeTimestamp?: number): Promise<Message[]> => {
     try {
       const [messagesData, imagesData] = await Promise.all([
         apiService.getAllMessages(),
         apiService.getAllImages()
       ]);
-      
       const allMessages: Message[] = [];
-      
       for (const [id, msg] of Object.entries(messagesData)) {
         const messageData = msg as any;
         if (messageData?.text && messageData?.username) {
@@ -359,7 +337,6 @@ const useMessages = () => {
             imageId: messageData.imageId,
             mentions: messageData.mentions || [],
           };
-          
           if (message.type === "image" && message.imageId && imagesData?.[message.imageId]) {
             const imageData = imagesData[message.imageId];
             if (imageData?.full && imageData?.thumbnail) {
@@ -367,42 +344,34 @@ const useMessages = () => {
               message.imageThumbnail = imageData.thumbnail;
             }
           }
-          
           allMessages.push(message);
         }
       }
-      
       allMessages.sort((a, b) => b.timestamp - a.timestamp);
-      
       let filteredMessages = allMessages;
       if (beforeTimestamp) {
         filteredMessages = allMessages.filter(m => m.timestamp < beforeTimestamp);
       }
-      
       if (limit && limit > 0) {
         filteredMessages = filteredMessages.slice(0, limit);
       }
-      
       return filteredMessages.reverse();
     } catch (err) {
       console.error("Error loading messages:", err);
       return [];
     }
   }, []);
-
   const loadMessages = useCallback(async () => {
     setIsLoading(true);
     try {
       const loadedMessages = await loadAndCombineMessages(CONFIG.MESSAGES_PER_PAGE);
       setMessages(loadedMessages);
-      
       if (loadedMessages.length > 0) {
         const olderMessages = await loadAndCombineMessages(1, loadedMessages[0]?.timestamp);
         setHasMoreMessages(olderMessages.length > 0);
       } else {
         setHasMoreMessages(false);
       }
-      
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 100);
     } catch (err) {
       console.error("Error loading messages:", err);
@@ -410,28 +379,21 @@ const useMessages = () => {
       setIsLoading(false);
     }
   }, [loadAndCombineMessages]);
-
   const loadMoreMessages = useCallback(async () => {
     if (isLoadingMore || !hasMoreMessages || messages.length === 0) return;
-    
     setIsLoadingMore(true);
     try {
       const oldestMessage = messages[0];
       if (!oldestMessage) return;
-      
       const olderMessages = await loadAndCombineMessages(CONFIG.MESSAGES_PER_PAGE, oldestMessage.timestamp);
-      
       if (olderMessages.length === 0) {
         setHasMoreMessages(false);
       } else {
         const scrollHeightBefore = messagesContainerRef.current?.scrollHeight || 0;
         const scrollTopBefore = messagesContainerRef.current?.scrollTop || 0;
-        
         setMessages(prev => [...olderMessages, ...prev]);
-        
         const evenOlderMessages = await loadAndCombineMessages(1, olderMessages[0]?.timestamp);
         setHasMoreMessages(evenOlderMessages.length > 0);
-        
         setTimeout(() => {
           if (messagesContainerRef.current) {
             const newScrollHeight = messagesContainerRef.current.scrollHeight;
@@ -447,7 +409,6 @@ const useMessages = () => {
       setIsLoadingMore(false);
     }
   }, [isLoadingMore, hasMoreMessages, messages, loadAndCombineMessages]);
-
   return {
     messages,
     setMessages,
@@ -464,30 +425,60 @@ const useMessages = () => {
     loadMoreMessages,
   };
 };
-
-// User Presence Hook
-const useUserPresence = (isJoined: boolean) => {
+// User Presence Hook - FIXED to preserve user identity
+const useUserPresence = (isJoined: boolean, username: string) => {
   const [onlineUsers, setOnlineUsers] = useState<User[]>([]);
-  const userIdRef = useRef<string>(utils.generateId());
+  const [userId, setUserId] = useState<string>("");
   const usernameRef = useRef<string>("");
   const userHeartbeatRef = useRef<NodeJS.Timeout | undefined>(undefined);
-
+  
+  // Initialize or restore user ID on mount
+  useEffect(() => {
+    // Try to restore saved userId first
+    const savedUserId = localStorage.getItem("chat-userId");
+    const savedUsername = localStorage.getItem("chat-username");
+    
+    if (savedUserId && savedUsername) {
+      // Use existing userId
+      setUserId(savedUserId);
+      usernameRef.current = savedUsername;
+    } else if (username) {
+      // Generate new userId only if no saved one exists
+      const newUserId = utils.generateId();
+      setUserId(newUserId);
+      usernameRef.current = username;
+      // Save to localStorage
+      localStorage.setItem("chat-userId", newUserId);
+      localStorage.setItem("chat-username", username);
+    }
+  }, [username]);
+  
   const updateLastActive = useCallback(async () => {
-    if (!isJoined) return;
+    if (!isJoined || !userId) return;
     try {
-      await apiService.patchUser(userIdRef.current, { lastActive: Date.now() });
+      // First check if user exists
+      const userExists = await apiService.checkUserExists(userId);
+      if (userExists) {
+        await apiService.patchUser(userId, { lastActive: Date.now() });
+      } else {
+        // Recreate user if somehow deleted
+        await apiService.putUser(userId, {
+          username: usernameRef.current,
+          joinedAt: Date.now(),
+          lastActive: Date.now(),
+        });
+      }
     } catch (err) {
       console.error("Error updating last active:", err);
     }
-  }, [isJoined]);
-
+  }, [isJoined, userId]);
+  
   const loadOnlineUsers = useCallback(async () => {
     try {
       const res = await apiService.getUsers();
       const data: Record<string, any> = await res.json();
       const now = Date.now();
       const active: User[] = [];
-      
       Object.entries(data || {}).forEach(([key, user]) => {
         if (!user?.username || !user?.lastActive) return;
         if (now - user.lastActive < CONFIG.USER_ACTIVE_THRESHOLD) {
@@ -499,79 +490,96 @@ const useUserPresence = (isJoined: boolean) => {
           });
         }
       });
-      
       active.sort((a, b) => {
-        if (a.id === userIdRef.current) return -1;
-        if (b.id === userIdRef.current) return 1;
+        if (a.id === userId) return -1;
+        if (b.id === userId) return 1;
         return a.username.localeCompare(b.username);
       });
-      
       setOnlineUsers(active);
     } catch (err) {
       console.error("Error loading online users:", err);
     }
-  }, []);
-
-  const registerUser = useCallback(async () => {
+  }, [userId]);
+  
+  const registerOrRestoreUser = useCallback(async () => {
+    if (!isJoined || !userId) return;
+    
     try {
-      await apiService.putUser(userIdRef.current, {
-        username: usernameRef.current,
-        joinedAt: Date.now(),
-        lastActive: Date.now(),
-      });
+      // Check if user already exists in database
+      const userExists = await apiService.checkUserExists(userId);
+      const userData = userExists ? await apiService.getUser(userId) : null;
+      
+      if (userExists && userData) {
+        // User exists - just update lastActive
+        await apiService.patchUser(userId, {
+          lastActive: Date.now(),
+        });
+        console.log(`Restored existing user: ${userData.username} (${userId})`);
+      } else {
+        // New user - create entry
+        await apiService.putUser(userId, {
+          username: usernameRef.current,
+          joinedAt: Date.now(),
+          lastActive: Date.now(),
+        });
+        console.log(`Created new user: ${usernameRef.current} (${userId})`);
+      }
+      
       setTimeout(loadOnlineUsers, 1000);
     } catch (err) {
-      console.error("Error registering user:", err);
+      console.error("Error registering/restoring user:", err);
     }
-  }, [loadOnlineUsers]);
-
+  }, [isJoined, userId, loadOnlineUsers]);
+  
   const removeUser = useCallback(async () => {
+    if (!userId) return;
     try {
-      await apiService.deleteUser(userIdRef.current);
+      await apiService.deleteUser(userId);
     } catch (err) {
       console.error("Error removing user:", err);
     }
-  }, []);
-
+  }, [userId]);
+  
   useEffect(() => {
-    if (!isJoined) return;
-    registerUser();
+    if (!isJoined || !userId) return;
+    
+    registerOrRestoreUser();
+    
     userHeartbeatRef.current = setInterval(() => {
       updateLastActive();
       loadOnlineUsers();
     }, CONFIG.HEARTBEAT_INTERVAL);
+    
     return () => {
       clearInterval(userHeartbeatRef.current);
       removeUser();
     };
-  }, [isJoined, registerUser, loadOnlineUsers, updateLastActive, removeUser]);
-
+  }, [isJoined, userId, registerOrRestoreUser, loadOnlineUsers, updateLastActive, removeUser]);
+  
   useEffect(() => {
-    if (!isJoined) return;
+    if (!isJoined || !userId) return;
     const interval = setInterval(loadOnlineUsers, CONFIG.USER_REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [isJoined, loadOnlineUsers]);
-
+  }, [isJoined, userId, loadOnlineUsers]);
+  
   return {
     onlineUsers,
-    userId: userIdRef.current,
+    userId,
     usernameRef,
     updateLastActive,
     loadOnlineUsers,
   };
 };
-
 // Image Upload Hook
 const useImageUpload = (
-  usernameRef: React.MutableRefObject<string>, 
-  userId: string, 
-  updateLastActive: () => Promise<void>, 
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>, 
+  usernameRef: React.MutableRefObject<string>,
+  userId: string,
+  updateLastActive: () => Promise<void>,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
   messagesEndRef: React.RefObject<HTMLDivElement | null>
 ) => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleImageUpload = useCallback(async (file: File) => {
     if (!file) return;
     if (!CONFIG.ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -582,18 +590,15 @@ const useImageUpload = (
       alert("Image must be less than 2MB");
       return;
     }
-    
     setIsUploading(true);
     await updateLastActive();
     const messageId = utils.generateId();
     const currentUsername = usernameRef.current;
-    
     if (!currentUsername) {
       alert("Username not found");
       setIsUploading(false);
       return;
     }
-    
     try {
       const { full, thumbnail } = await utils.processImage(file);
       const uploadRes = await fetch("/api/upload-image", {
@@ -601,9 +606,7 @@ const useImageUpload = (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageData: { full, thumbnail }, messageId }),
       });
-      
       if (!uploadRes.ok) throw new Error("Failed to upload image");
-      
       const newMessage: Message = {
         id: messageId,
         text: "📷 Image",
@@ -617,17 +620,13 @@ const useImageUpload = (
         imageUrl: full,
         imageThumbnail: thumbnail,
       };
-      
       setMessages((prev) => {
         if (prev.some((m) => m.id === messageId)) return prev;
         return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
       });
-      
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      
       const updateStatus = (status: MessageStatus | undefined) =>
         setMessages((prev) => prev.map((msg) => msg.id === messageId ? { ...msg, status } : msg));
-      
       try {
         updateStatus("sent");
         const messageToSend = { ...newMessage };
@@ -652,31 +651,25 @@ const useImageUpload = (
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }, [usernameRef, userId, updateLastActive, setMessages, messagesEndRef]);
-
   const handleImageButtonClick = () => fileInputRef.current?.click();
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleImageUpload(file);
   };
-
   return { isUploading, fileInputRef, handleImageButtonClick, handleFileSelect, handleImageUpload };
 };
-
 // Reactions Hook
 const useReactions = (messages: Message[], setMessages: React.Dispatch<React.SetStateAction<Message[]>>, userId: string, username: string) => {
   const addReaction = useCallback(async (messageId: string, reactionType: ReactionType) => {
     const message = messages.find((m) => m.id === messageId);
     const cleanReactions = utils.sanitizeReactions(message?.reactions || []);
     const hasReacted = cleanReactions.some((r) => r.userId === userId && r.type === reactionType);
-    
     const updatedReactions = hasReacted
       ? cleanReactions.filter((r) => !(r.userId === userId && r.type === reactionType))
       : [...cleanReactions, { type: reactionType, userId, username, timestamp: Date.now() }];
-    
     setMessages((prev) =>
       prev.map((msg) => (msg.id === messageId ? { ...msg, reactions: updatedReactions } : msg))
     );
-    
     try {
       await apiService.putReactions(messageId, updatedReactions);
       await apiService.sendReaction(messageId, hasReacted ? null : updatedReactions[updatedReactions.length - 1]);
@@ -684,31 +677,26 @@ const useReactions = (messages: Message[], setMessages: React.Dispatch<React.Set
       console.error("Error updating reaction:", err);
     }
   }, [messages, setMessages, userId, username]);
-
   return { addReaction };
 };
-
 // Pusher Hook
 const usePusher = (
-  isJoined: boolean, 
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>, 
-  setNewMessageCount: React.Dispatch<React.SetStateAction<number>>, 
-  isUserScrolled: boolean, 
+  isJoined: boolean,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+  setNewMessageCount: React.Dispatch<React.SetStateAction<number>>,
+  isUserScrolled: boolean,
   messagesEndRef: React.RefObject<HTMLDivElement | null>
 ) => {
   useEffect(() => {
     if (!isJoined) return;
-    
     const pusher = new Pusher(CONFIG.PUSHER_KEY, {
       cluster: CONFIG.PUSHER_CLUSTER,
       authEndpoint: "/api/pusher-auth",
     });
     const channel = pusher.subscribe("private-chat-channel");
-    
     channel.bind("new-message", async (data: any) => {
       let imageUrl: string | undefined = undefined;
       let imageThumbnail: string | undefined = undefined;
-      
       if (data.type === "image" && data.imageId) {
         const imageData = await apiService.fetchImage(data.imageId);
         if (imageData) {
@@ -716,17 +704,15 @@ const usePusher = (
           imageThumbnail = imageData.thumbnail;
         }
       }
-      
       setMessages((prev) => {
         if (prev.some((m) => m.id === data.id)) return prev;
-        const newMessage: Message = { 
-          ...data, 
-          status: "delivered" as MessageStatus, 
-          imageUrl, 
-          imageThumbnail 
+        const newMessage: Message = {
+          ...data,
+          status: "delivered" as MessageStatus,
+          imageUrl,
+          imageThumbnail
         };
         const newMessages = [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
-        
         if (isUserScrolled) {
           setNewMessageCount(prev => prev + 1);
         } else {
@@ -735,7 +721,6 @@ const usePusher = (
         return newMessages;
       });
     });
-    
     channel.bind("message-reaction", (data: { messageId: string; reaction: Reaction | null }) => {
       if (!data.reaction) return;
       setMessages((prev) =>
@@ -745,14 +730,13 @@ const usePusher = (
             (r) => r?.userId === data.reaction!.userId && r?.type === data.reaction!.type
           );
           if (alreadyExists) return msg;
-          return { 
-            ...msg, 
-            reactions: [...utils.sanitizeReactions(msg.reactions), data.reaction!] 
+          return {
+            ...msg,
+            reactions: [...utils.sanitizeReactions(msg.reactions), data.reaction!]
           };
         })
       );
     });
-    
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
@@ -760,18 +744,15 @@ const usePusher = (
     };
   }, [isJoined, setMessages, setNewMessageCount, isUserScrolled, messagesEndRef]);
 };
-
 // Activity Tracking Hook
 const useActivityTracking = (isJoined: boolean, updateLastActive: () => Promise<void>) => {
   const activityTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-
   const updateUserActivity = useCallback(() => {
     if (!isJoined) return;
     if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     updateLastActive();
     activityTimeoutRef.current = setTimeout(() => {}, 120000);
   }, [isJoined, updateLastActive]);
-
   useEffect(() => {
     if (!isJoined) return;
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'focus'];
@@ -783,10 +764,8 @@ const useActivityTracking = (isJoined: boolean, updateLastActive: () => Promise<
       if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
     };
   }, [isJoined, updateUserActivity]);
-
   return { updateUserActivity };
 };
-
 // Mention Suggestions Hook
 const useMentionSuggestions = (onlineUsers: User[], currentUserId: string, setInputMessage: React.Dispatch<React.SetStateAction<string>>) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -794,63 +773,51 @@ const useMentionSuggestions = (onlineUsers: User[], currentUserId: string, setIn
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-
   const updateSuggestions = useCallback((text: string, cursorPos: number) => {
     // Find @ symbol before cursor
     const textBeforeCursor = text.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
     if (lastAtIndex !== -1) {
       const query = textBeforeCursor.substring(lastAtIndex + 1);
       // Check if there's a space after the @ (meaning it's not a mention)
       const hasSpace = query.includes(' ');
       const isMention = !hasSpace && !query.includes('@');
-      
       if (isMention && lastAtIndex >= 0) {
         const filteredUsers = onlineUsers
           .filter(u => u.id !== currentUserId)
           .filter(u => u.username.toLowerCase().includes(query.toLowerCase()))
           .slice(0, 5);
-        
         // Add @everyone option
         const everyoneOption = { id: 'everyone', username: 'everyone', joinedAt: 0, lastActive: 0 };
         const suggestionsList = ['everyone'.toLowerCase().includes(query.toLowerCase()) ? everyoneOption : null, ...filteredUsers].filter(Boolean) as User[];
-        
         setSuggestions(suggestionsList);
         setShowSuggestions(suggestionsList.length > 0);
         setSelectedIndex(0);
         return;
       }
     }
-    
     setShowSuggestions(false);
     setSuggestions([]);
   }, [onlineUsers, currentUserId]);
-
   const insertMention = useCallback((username: string) => {
     if (!inputRef.current) return;
-    
     const text = inputRef.current.value;
     const cursorPos = inputRef.current.selectionStart || 0;
     const textBeforeCursor = text.substring(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
     if (lastAtIndex !== -1) {
-      const newText = text.substring(0, lastAtIndex) + `@${username} ` + text.substring(cursorPos);
+      const newText = text.substring(0, lastAtIndex) + `@${username}` + text.substring(cursorPos);
       inputRef.current.value = newText;
       setInputMessage(newText);
       inputRef.current.focus();
       const newCursorPos = lastAtIndex + username.length + 2;
       inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
     }
-    
     setShowSuggestions(false);
     setSuggestions([]);
   }, [setInputMessage]);
-
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showSuggestions) return;
-    
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (prev + 1) % suggestions.length);
@@ -866,7 +833,6 @@ const useMentionSuggestions = (onlineUsers: User[], currentUserId: string, setIn
       setShowSuggestions(false);
     }
   }, [showSuggestions, suggestions, selectedIndex, insertMention]);
-
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputMessage(value);
@@ -874,7 +840,6 @@ const useMentionSuggestions = (onlineUsers: User[], currentUserId: string, setIn
     setCursorPosition(cursorPos);
     updateSuggestions(value, cursorPos);
   }, [setInputMessage, updateSuggestions]);
-
   return {
     showSuggestions,
     suggestions,
@@ -885,11 +850,9 @@ const useMentionSuggestions = (onlineUsers: User[], currentUserId: string, setIn
     insertMention,
   };
 };
-
 // ============================================================
 // UI COMPONENTS
 // ============================================================
-
 const StatusIcon = ({ status }: { status: MessageStatus }) => {
   const configs = {
     sending: { color: "text-gray-500 dark:text-gray-400", label: "Sending...", icon: <svg className="animate-spin h-2 w-2 sm:h-3 sm:w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> },
@@ -906,7 +869,6 @@ const StatusIcon = ({ status }: { status: MessageStatus }) => {
     </div>
   );
 };
-
 const ReactionPicker = ({ reactions, userId, onReact }: { reactions?: Reaction[]; userId: string; onReact: (type: ReactionType) => void }) => (
   <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 p-0.5 sm:p-1 flex gap-0 z-20">
     {CONFIG.REACTIONS.map((reaction) => {
@@ -919,7 +881,6 @@ const ReactionPicker = ({ reactions, userId, onReact }: { reactions?: Reaction[]
     })}
   </div>
 );
-
 const ReactionDisplay = ({ reactions, userId }: { reactions?: Reaction[]; userId: string }) => {
   const counts = utils.getReactionCounts(reactions);
   const unique = utils.getUniqueReactions(reactions);
@@ -938,14 +899,12 @@ const ReactionDisplay = ({ reactions, userId }: { reactions?: Reaction[]; userId
     </div>
   );
 };
-
 const MessageBubble = ({ message, currentUserId, isHovered, onMouseEnter, onMouseLeave, onReact, onlineUsers }: { message: Message; currentUserId: string; isHovered: boolean; onMouseEnter: () => void; onMouseLeave: () => void; onReact: (type: ReactionType) => void; onlineUsers: User[] }) => {
   const isOwn = message.userId === currentUserId;
   const uniqueReactions = utils.getUniqueReactions(message.reactions);
   const hasReactions = uniqueReactions.length > 0;
   const isImage = message.type === "image";
   const [imageLoaded, setImageLoaded] = useState(false);
-  
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} ${hasReactions ? 'mb-7' : 'mb-3'}`}>
       <div className={`relative max-w-[85%] sm:max-w-[70%] md:max-w-[60%] min-w-[40px] ${isOwn ? 'mr-2' : 'ml-2'}`} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -992,7 +951,6 @@ const MessageBubble = ({ message, currentUserId, isHovered, onMouseEnter, onMous
     </div>
   );
 };
-
 const UserListItem = ({ user, isCurrentUser }: { user: User; isCurrentUser: boolean }) => (
   <div className={`flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all cursor-pointer ${isCurrentUser ? "bg-blue-50 dark:bg-blue-900/50" : ""}`}>
     <div className="relative flex-shrink-0">
@@ -1012,7 +970,6 @@ const UserListItem = ({ user, isCurrentUser }: { user: User; isCurrentUser: bool
     </div>
   </div>
 );
-
 const JoinScreen = ({ username, onUsernameChange, onSubmit, theme, toggleTheme }: { username: string; onUsernameChange: (value: string) => void; onSubmit: (e: React.FormEvent) => void; theme: Theme; toggleTheme: () => void }) => (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 transition-colors duration-300">
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 sm:p-10 max-w-md w-full transition-colors duration-300 relative">
@@ -1040,7 +997,6 @@ const JoinScreen = ({ username, onUsernameChange, onSubmit, theme, toggleTheme }
     </div>
   </div>
 );
-
 // ChatScreen Component
 const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHoveredMessageId, isMobileMenuOpen, setIsMobileMenuOpen, isUserScrolled, showScrollButton, newMessageCount, showLoadMoreButton, hasMoreMessages, isLoading, isLoadingMore, isUploading, userId, messagesEndRef, messagesContainerRef, fileInputRef, onSendMessage, onLoadMoreMessages, onAddReaction, onScrollToBottom, onClearSavedUser, onImageUpload, onFileSelect, onPaste, onScroll, updateUserActivity, theme, toggleTheme, showSuggestions, suggestions, selectedIndex, inputRef, handleKeyDown, handleInputChange, insertMention }: any) => (
   <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-hidden transition-colors duration-300">
@@ -1071,7 +1027,6 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
         </div>
       </div>
     </div>
-
     {/* Main Content */}
     <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
       <div className="w-full lg:max-w-[90%] xl:max-w-[80%] h-full flex gap-4">
@@ -1097,9 +1052,7 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
             )}
           </div>
         </div>
-
         {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
-
         {/* Chat Area */}
         <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-xl flex flex-col overflow-hidden relative">
           {showLoadMoreButton && hasMoreMessages && !isLoading && messages.length > 0 && (
@@ -1109,20 +1062,17 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
               </button>
             </div>
           )}
-          
           {showScrollButton && newMessageCount === 0 && (
             <button onClick={onScrollToBottom} className="absolute bottom-20 right-4 bg-blue-500 text-white rounded-full p-2 shadow-lg hover:bg-blue-600 z-10">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
             </button>
           )}
-          
           {newMessageCount > 0 && (
             <button onClick={onScrollToBottom} className="absolute bottom-20 right-4 bg-blue-500 text-white rounded-full px-3 py-2 shadow-lg hover:bg-blue-600 z-10 text-sm flex items-center gap-2">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
               {newMessageCount} new
             </button>
           )}
-          
           <div ref={messagesContainerRef} onScroll={onScroll} className="flex-1 overflow-y-auto p-4 space-y-3">
             {isLoading ? (
               <div className="flex justify-center items-center h-full"><div className="text-center"><svg className="animate-spin h-8 w-8 text-blue-500 mx-auto mb-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg><p className="text-gray-500 dark:text-gray-400">Loading messages...</p></div></div>
@@ -1135,7 +1085,6 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
             )}
             <div ref={messagesEndRef} />
           </div>
-
           {/* Input Area with Suggestions at the TOP */}
           <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 relative">
             {/* Mention Suggestions Dropdown - Positioned at the TOP of input field */}
@@ -1162,7 +1111,6 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
                 ))}
               </div>
             )}
-            
             <form onSubmit={onSendMessage} className="space-y-2">
               <div className="flex gap-2">
                 <button type="button" onClick={onImageUpload} disabled={isUploading} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-xl flex-shrink-0 disabled:opacity-50">
@@ -1199,7 +1147,6 @@ const ChatScreen = ({ messages, username, onlineUsers, hoveredMessageId, setHove
     </div>
   </div>
 );
-
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
@@ -1213,16 +1160,13 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const hoverTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-
   const { messages, setMessages, isLoading, isLoadingMore, hasMoreMessages, showLoadMoreButton, setShowLoadMoreButton, newMessageCount, setNewMessageCount, messagesEndRef, messagesContainerRef, loadMessages, loadMoreMessages } = useMessages();
-  const { onlineUsers, userId, usernameRef, updateLastActive, loadOnlineUsers } = useUserPresence(isJoined);
+  const { onlineUsers, userId, usernameRef, updateLastActive, loadOnlineUsers } = useUserPresence(isJoined, username);
   const { updateUserActivity } = useActivityTracking(isJoined, updateLastActive);
   const { isUploading, fileInputRef, handleImageButtonClick, handleFileSelect, handleImageUpload } = useImageUpload(usernameRef, userId, updateLastActive, setMessages, messagesEndRef);
   const { addReaction } = useReactions(messages, setMessages, userId, usernameRef.current);
   const { showSuggestions, suggestions, selectedIndex, inputRef, handleKeyDown, handleInputChange, insertMention } = useMentionSuggestions(onlineUsers, userId, setInputMessage);
-  
   usePusher(isJoined, setMessages, setNewMessageCount, isUserScrolled, messagesEndRef);
-
   const handleScroll = useCallback(() => {
     if (!messagesContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
@@ -1235,20 +1179,16 @@ export default function Home() {
     else if (!isNearTop) setShowLoadMoreButton(false);
     updateUserActivity();
   }, [messagesContainerRef, newMessageCount, hasMoreMessages, isLoadingMore, messages.length, setNewMessageCount, setShowLoadMoreButton, updateUserActivity]);
-
   const sendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
     const currentUsername = usernameRef.current;
     if (!currentUsername) return;
-    
     updateUserActivity();
     await updateLastActive();
     const messageId = utils.generateId();
-    
     // Parse mentions
     const { mentions } = utils.parseMentions(inputMessage, onlineUsers, userId);
-    
     const newMessage: Message = {
       id: messageId,
       text: inputMessage,
@@ -1262,12 +1202,9 @@ export default function Home() {
     };
     setInputMessage("");
     if (inputRef.current) inputRef.current.value = "";
-    
     const updateStatus = (status: MessageStatus | undefined) =>
       setMessages((prev) => prev.map((msg) => msg.id === messageId ? { ...msg, status } : msg));
-    
     setMessages((prev) => prev.some((m) => m.id === messageId) ? prev : [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp));
-    
     try {
       updateStatus("sent");
       const res = await apiService.sendMessage(newMessage);
@@ -1279,12 +1216,10 @@ export default function Home() {
       console.error("Error sending message:", err);
       updateStatus("error");
     }
-    
     setIsUserScrolled(false);
     setShowScrollButton(false);
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }, [inputMessage, usernameRef, updateUserActivity, updateLastActive, userId, setMessages, setInputMessage, setIsUserScrolled, setShowScrollButton, messagesEndRef, onlineUsers]);
-
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
@@ -1299,7 +1234,6 @@ export default function Home() {
       }
     }
   }, [handleImageUpload]);
-
   const scrollToBottom = useCallback(() => {
     setNewMessageCount(0);
     setIsUserScrolled(false);
@@ -1307,16 +1241,13 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     updateUserActivity();
   }, [setNewMessageCount, setIsUserScrolled, setShowScrollButton, messagesEndRef, updateUserActivity]);
-
   const joinChat = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) return;
     usernameRef.current = username;
     localStorage.setItem("chat-username", username);
-    localStorage.setItem("chat-userId", userId);
     setIsJoined(true);
-  }, [username, usernameRef, userId]);
-
+  }, [username, usernameRef]);
   const clearSavedUser = useCallback(() => {
     localStorage.removeItem("chat-username");
     localStorage.removeItem("chat-userId");
@@ -1324,46 +1255,38 @@ export default function Home() {
     usernameRef.current = "";
     window.location.reload();
   }, []);
-
   const handleUsernameChange = useCallback((value: string) => {
     setUsername(value);
     usernameRef.current = value;
   }, []);
-
   const handleMouseEnter = useCallback((messageId: string) => {
     clearTimeout(hoverTimeoutRef.current);
     setHoveredMessageId(messageId);
     updateUserActivity();
   }, [updateUserActivity]);
-
   const handleMouseLeave = useCallback(() => {
     hoverTimeoutRef.current = setTimeout(() => setHoveredMessageId(null), 200);
   }, []);
-
+  // Initialize from localStorage on mount
   useEffect(() => {
     const savedUsername = localStorage.getItem("chat-username");
-    const savedUserId = localStorage.getItem("chat-userId");
-    if (savedUsername && savedUserId) {
+    if (savedUsername) {
       setUsername(savedUsername);
       usernameRef.current = savedUsername;
       setIsJoined(true);
     }
   }, []);
-
   useEffect(() => {
     if (isJoined) loadMessages();
   }, [isJoined, loadMessages]);
-
   useEffect(() => {
     if (!isUserScrolled && messagesEndRef.current && messages.length > 0 && !isLoadingMore) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isUserScrolled, isLoadingMore, messagesEndRef]);
-
   if (!isJoined) {
     return <JoinScreen username={username} onUsernameChange={handleUsernameChange} onSubmit={joinChat} theme={theme} toggleTheme={toggleTheme} />;
   }
-
   return (
     <ChatScreen
       messages={messages}
