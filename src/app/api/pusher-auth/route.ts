@@ -22,8 +22,8 @@ async function getPusherAuthSignature(socketId: string, channelName: string, app
 }
 
 export async function POST(request: Request) {
-  const PUSHER_APP_KEY = "bc4bbe143420c20c0e9d";
-  const PUSHER_SECRET = "bbd18207d17c2f39529e"; 
+  const PUSHER_APP_KEY = "4de6e91a5e72dd9096db";
+  const PUSHER_SECRET = "b9c26ec9196d0338ba7a"; 
 
   try {
     const bodyText = await request.text();
